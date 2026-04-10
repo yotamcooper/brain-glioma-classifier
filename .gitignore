@@ -1,0 +1,30 @@
+# Dataset
+data/*
+!data/.gitkeep
+
+# Model artifacts
+models/*
+!models/.gitkeep
+*.keras
+*.h5
+*.joblib
+
+# Tabular data
+*.csv
+*.tsv
+*.gz
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.dbdata.zip
+data/
+models/
+figures/
