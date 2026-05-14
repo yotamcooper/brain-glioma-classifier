@@ -29,10 +29,10 @@ Stage 2: LGG vs GBM Grading Classifier    <- "How aggressive is the tumor?"
 
 Classifies MRI brain scans as healthy or tumor using a fine-tuned DenseNet-121 CNN.
 
-**Dataset:** [Brain Tumor MRI Classification Dataset (Tumor vs. No Tumor)](https://data.mendeley.com/datasets/w56x9jrhxr/1) — Mendeley Data
+**Dataset:** [Brain Tumor MRI Classification Dataset (Tumor vs. No Tumor)](https://data.mendeley.com/datasets/w56x9jrhxr/1) - Mendeley Data
 - ~26,500 T1-weighted brain MRI scans across two classes
 - Tumor (after augmentation): 13,252 images | No Tumor: 13,273 images
-- Original dataset was imbalanced (3,671 tumor vs 13,273 no-tumor) — tumor class augmented on disk using rotation and normalization
+- Original dataset was imbalanced (3,671 tumor vs 13,273 no-tumor) - tumor class augmented on disk using rotation and normalization
 - Images resized to 224×224 to match DenseNet-121 input requirements
 - Split: 70% train / 15% val / 15% test (stratified, done in `preprocessing.py`)
 - Binary classification: No Tumor / Tumor
