@@ -36,7 +36,7 @@ Classifies MRI brain scans as healthy or tumor using a fine-tuned DenseNet-121 C
 - Images resized to 224×224 to match DenseNet-121 input requirements
 - Split: 70% train / 15% val / 15% test (stratified, done in `preprocessing.py`)
 - Binary classification: No Tumor / Tumor
-- Two-phase training: head only phase with DenseNet frozen → fine-tune last 50 DenseNet layers with head
+- Two phase training: 1) head only phase with DenseNet frozen → 2) fine-tune last 50 DenseNet layers with head
 
 **Results:**
 
@@ -66,7 +66,7 @@ Classifies glioma patients as Low Grade Glioma (LGG) or Glioblastoma (GBM) using
 | Gradient Boosting | 0.866 ± 0.013 | 0.861 ± 0.013 |
 | Random Forest | 0.842 ± 0.023 | 0.842 ± 0.019 |
 
-**Best model:** Logistic Regression — after hyperparameter tuning (C=1, class_weight=balanced):
+**Best model:** Logistic Regression: after hyperparameter tuning (C=1, class_weight=balanced):
 
 | Metric | Value |
 |---|---|
