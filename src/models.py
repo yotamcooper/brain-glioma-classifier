@@ -70,7 +70,7 @@ def save_stage2_model(model, model_name, metrics, path='models/stage2_final.jobl
     joblib.dump(model, path)
     metadata = {
         'model_type': model_name,
-        'params':     model.get_params(),
+        'params':     {k: str(v) for k, v in model.get_params().items()},
         'trained_at': datetime.now().isoformat(),
         'metrics':    metrics,
     }
