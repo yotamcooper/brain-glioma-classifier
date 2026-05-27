@@ -22,24 +22,24 @@ def evaluate_grading_model(model, X_test, y_test, features, model_name):
     os.makedirs(FIGURES_DIR, exist_ok=True)
 
     y_probs = model.predict_proba(X_test)[:, 1]
-    y_pred  = model.predict(X_test)
+    y_pred = model.predict(X_test)
 
-    auc_score   = roc_auc_score(y_test, y_probs)
-    accuracy    = accuracy_score(y_test, y_pred)
-    cm_metrics  = confusion_matrix(y_test, y_pred)
+    auc_score = roc_auc_score(y_test, y_probs)
+    accuracy = accuracy_score(y_test, y_pred)
+    cm_metrics = confusion_matrix(y_test, y_pred)
     tn, fp, fn, tp = cm_metrics.ravel()
     sensitivity = tp / (tp + fn)
     specificity = tn / (tn + fp)
 
     rows = [
-        ["Metric",             "Value"],
-        ["Model",              model_name],
-        ["AUC Score",          f"{auc_score:.4f}"],
-        ["Accuracy",           f"{accuracy * 100:.2f}%"],
-        ["Sensitivity (TPR)",  f"{sensitivity * 100:.2f}%"],
-        ["Specificity (TNR)",  f"{specificity * 100:.2f}%"],
-        ["False Negatives",    f"{fn}  (missed GBM)"],
-        ["False Positives",    f"{fp}  (LGG misclassified)"],
+        ["Metric", "Value"],
+        ["Model", model_name],
+        ["AUC Score", f"{auc_score:.4f}"],
+        ["Accuracy", f"{accuracy * 100:.2f}%"],
+        ["Sensitivity (TPR)", f"{sensitivity * 100:.2f}%"],
+        ["Specificity (TNR)", f"{specificity * 100:.2f}%"],
+        ["False Negatives", f"{fn}  (missed GBM)"],
+        ["False Positives", f"{fp}  (LGG misclassified)"],
     ]
 
     print("\n" + "=" * 45)
@@ -57,115 +57,81 @@ def evaluate_grading_model(model, X_test, y_test, features, model_name):
         save_path=os.path.join(FIGURES_DIR, "results_table_stage2.png")
     )
 
-    plot_pca(X_test, y_test,
-             class_names=['GBM', 'LGG'],
-             title=f'PCA: LGG vs GBM — {model_name}',
-             save_path=os.path.join(FIGURES_DIR, 'pca_lgg_gbm.png'))
+    X_transformed = _impute_for_viz(model, X_test)
 
-    plot_roc(y_test, y_probs,
-             title=f'ROC Curve — LGG vs GBM ({model_name})',
-             save_path=os.path.join(FIGURES_DIR, 'roc_lgg_gbm.png'))
+    plot_pca(
+        X_transformed, y_test,
+        class_names=["GBM", "LGG"],
+        title=f"PCA: LGG vs GBM — {model_name}",
+        save_path=os.path.join(FIGURES_DIR, "pca_lgg_gbm.png")
+    )
+
+    plot_roc(
+        y_test, y_probs,
+        title=f"ROC Curve — LGG vs GBM ({model_name})",
+        save_path=os.path.join(FIGURES_DIR, "roc_lgg_gbm.png")
+    )
 
     _plot_confusion_matrix(
         confusion_matrix(y_test, y_pred),
-        class_names=['GBM', 'LGG'],
-        title=f'Confusion Matrix — {model_name}',
-        save_path=os.path.join(FIGURES_DIR, 'confusion_matrix_stage2.png')
+        class_names=["GBM", "LGG"],
+        title=f"Confusion Matrix — {model_name}",
+        save_path=os.path.join(FIGURES_DIR, "confusion_matrix_stage2.png")
     )
 
-    if hasattr(model, 'feature_importances_'):
-        plot_feature_importance(model, features,
-                                save_path=os.path.join(FIGURES_DIR, 'feature_importance.png'))
+    if hasattr(model, "feature_importances_"):
+        plot_feature_importance(
+            model, features,
+            save_path=os.path.join(FIGURES_DIR, "feature_importance.png")
+        )
     else:
-        plot_lr_coefficients(model, features,
-                             save_path=os.path.join(FIGURES_DIR, 'feature_importance.png'))
+        plot_lr_coefficients(
+            model, features,
+            save_path=os.path.join(FIGURES_DIR, "feature_importance.png")
+        )
 
 
-def plot_roc(y_true, y_probs, title='ROC Curve', save_path=None):
-    fpr, tpr, thresholds = roc_curve(y_true, y_probs)
-    roc_auc = auc(fpr, tpr)
-    optimal_idx = np.argmax(tpr - fpr)
-    optimal_threshold = thresholds[optimal_idx]
-
-    plt.figure(figsize=(8, 6))
-    plt.plot(fpr, tpr, color='darkorange', lw=2,
-             label=f'ROC curve (AUC = {roc_auc:.3f})')
-    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title(title)
-    plt.legend(loc='lower right')
-
-    if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
-    plt.show()
-
-    print(f"AUC: {roc_auc:.3f} | Optimal threshold: {optimal_threshold:.3f}")
-    print(f"At threshold -> FPR: {fpr[optimal_idx]:.3f}, TPR: {tpr[optimal_idx]:.3f}")
-    return roc_auc
-
-
-def plot_pca(X, y, class_names, title='PCA Projection', save_path=None):
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+def plot_pca(X, y, class_names, title="PCA Projection", save_path=None):
     pca = PCA(n_components=2)
-    X_pca = pca.fit_transform(X_scaled)
+    X_pca = pca.fit_transform(X)
 
-    colors = ['steelblue', 'tomato']
+    colors = ["steelblue", "tomato"]
     plt.figure(figsize=(8, 6))
     for i, name in enumerate(class_names):
         mask = y == i
-        plt.scatter(X_pca[mask, 0], X_pca[mask, 1],
-                    color=colors[i], alpha=0.6, label=name,
-                    edgecolor='k', s=40)
+        plt.scatter(
+            X_pca[mask, 0], X_pca[mask, 1],
+            color=colors[i], alpha=0.6, label=name,
+            edgecolor="k", s=40
+        )
 
-    plt.xlabel(f'PC1 ({pca.explained_variance_ratio_[0]*100:.1f}% var)')
-    plt.ylabel(f'PC2 ({pca.explained_variance_ratio_[1]*100:.1f}% var)')
+    plt.xlabel(f"PC1 ({pca.explained_variance_ratio_[0] * 100:.1f}% var)")
+    plt.ylabel(f"PC2 ({pca.explained_variance_ratio_[1] * 100:.1f}% var)")
     plt.title(title)
     plt.legend()
     plt.grid(True, alpha=0.3)
 
     if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
     plt.show()
-
-
-def plot_feature_importance(model, feature_names, top_n=15, save_path=None):
-    importances = model.feature_importances_
-    pairs = sorted(zip(feature_names, importances),
-                   key=lambda x: x[1], reverse=True)[:top_n]
-    names, scores = zip(*pairs)
-
-    print("\n--- Feature Importance ---")
-    print(f"{'Feature':<20} | {'Importance':<10}")
-    print("-" * 33)
-    for name, score in pairs:
-        print(f"{name:<20} | {score:.4f}")
-
-    plt.figure(figsize=(10, 5))
-    plt.barh(list(reversed(names)), list(reversed(scores)), color='steelblue')
-    plt.xlabel('Importance Score')
-    plt.title(f'Top {top_n} Feature Importances')
-    plt.tight_layout()
-
-    if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
-    plt.show()
-    return dict(pairs)
 
 
 def plot_lr_coefficients(model, feature_names, save_path=None):
-    coefs = pd.Series(model.coef_[0], index=feature_names).sort_values()
+    clf = model.named_steps["clf"]
+    coefs = pd.Series(clf.coef_[0], index=feature_names).sort_values()
     plt.figure(figsize=(10, 6))
-    coefs.plot(kind='barh', color=['tomato' if c > 0 else 'steelblue' for c in coefs])
-    plt.axvline(x=0, color='black', linewidth=0.8)
-    plt.title('Logistic Regression Coefficients -- LGG vs GBM')
-    plt.xlabel('Coefficient Value (positive = GBM, negative = LGG)')
+    coefs.plot(kind="barh", color=["tomato" if c > 0 else "steelblue" for c in coefs])
+    plt.axvline(x=0, color="black", linewidth=0.8)
+    plt.title("Logistic Regression Coefficients -- LGG vs GBM")
+    plt.xlabel("Coefficient Value (positive = GBM, negative = LGG)")
     plt.tight_layout()
     if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
     plt.show()
 
+
+def _impute_for_viz(model, X):
+    return model[:-1].transform(X)
 
 # ════════════════════════════════════════════════════════════
 #  STAGE 1  —  Tumor Detector
