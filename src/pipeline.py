@@ -30,7 +30,7 @@ def run_stage1(load_saved=False):
         model, history = train_stage1(model, base_model, train_gen, val_gen)
         metrics = evaluate_tumor_detector(model, test_gen, history)
         save_stage1_model(model, metrics, history)
-    return model
+    return model, history
 
 
 def run_stage2(load_saved=False):
