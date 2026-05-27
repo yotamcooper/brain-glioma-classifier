@@ -1,52 +1,41 @@
+import os
+import json
 from sklearn.model_selection import train_test_split
 from src.preprocessing import load_uci_glioma, encode_labels, create_image_generators
 from src.models import (
     build_tumor_detector, compare_models, tune_best_model,
     save_stage1_model, load_stage1_model,
-    save_stage2_model, load_stage2_model
+    save_stage2_model, load_stage2_model,
 )
 from src.train import train_stage1
 from src.evaluate import evaluate_tumor_detector, evaluate_grading_model
-import os
-import json
 
-MODELS_DIR = "models"
+MODELS_DIR = 'models'
 
-
-# ════════════════════════════════════════════════════════════
-#  STAGE 1  —  Tumor Detector
-# ════════════════════════════════════════════════════════════
 
 def run_stage1(load_saved=False):
     train_gen, val_gen, test_gen = create_image_generators()
 
     if load_saved:
         model, metadata = load_stage1_model()
-        history_path = os.path.join(MODELS_DIR, "stage1_history.json")
+        history_path = os.path.join(MODELS_DIR, 'stage1_history.json')
         if os.path.exists(history_path):
             with open(history_path) as f:
                 history = json.load(f)
-            print("History loaded ✅")
         else:
             history = None
-            print("⚠️  No history file found, training curves will be skipped.")
-        metrics = evaluate_tumor_detector(model, test_gen, history)
+        evaluate_tumor_detector(model, test_gen, history)
     else:
         model, base_model = build_tumor_detector()
         model, history = train_stage1(model, base_model, train_gen, val_gen)
         metrics = evaluate_tumor_detector(model, test_gen, history)
         save_stage1_model(model, metrics, history)
-    return model, history
+    return model
 
-
-# ════════════════════════════════════════════════════════════
-#  STAGE 2  —  LGG vs GBM Grading
-# ════════════════════════════════════════════════════════════
 
 def run_stage2(load_saved=False):
     df = load_uci_glioma('data/TCGA_GBM_LGG_Mutations_all.csv')
-    X, y, features, _, _, _ = encode_labels(df)
-    print(f"Dataset: {X.shape[0]} patients, {X.shape[1]} features\n")
+    X, y, features, _ = encode_labels(df)
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
@@ -56,8 +45,8 @@ def run_stage2(load_saved=False):
         best_model, metadata = load_stage2_model()
         best_name = metadata['model_type']
     else:
-        best_name, results = _compare_grading_models(X, y)
-        best_model = tune_best_model(X, y, best_name)
+        best_name, results = _compare_grading_models(X_train, y_train)
+        best_model = tune_best_model(X_train, y_train, best_name)
         best_model.fit(X_train, y_train)
         save_stage2_model(best_model, best_name, {
             'auc_mean': results[best_name]['auc_mean'],
@@ -68,11 +57,8 @@ def run_stage2(load_saved=False):
 
 
 def _compare_grading_models(X, y):
-    """Phase 1: Compare all models with CV to find the best."""
-    print("=== Model Comparison (5-fold CV) ===")
     results = compare_models(X, y)
     best_name = max(results, key=lambda name: results[name]['auc_mean'])
-    print(f"\n>> Best model: {best_name} (AUC: {results[best_name]['auc_mean']:.3f})")
     return best_name, results
 
 
