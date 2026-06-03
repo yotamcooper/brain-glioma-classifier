@@ -3,7 +3,7 @@ import json
 from sklearn.model_selection import train_test_split
 from src.preprocessing import load_uci_glioma, encode_labels, create_image_generators
 from src.models import (
-    build_tumor_detector, compare_models, tune_best_model,
+    build_tumor_detector, build_voting_classifier, evaluate_voting_model,
     save_stage1_model, load_stage1_model,
     save_stage2_model, load_stage2_model,
 )
@@ -45,21 +45,14 @@ def run_stage2(load_saved=False):
         best_model, metadata = load_stage2_model()
         best_name = metadata['model_type']
     else:
-        best_name, results = _compare_grading_models(X_train, y_train)
-        best_model = tune_best_model(X_train, y_train, best_name)
+        best_model = build_voting_classifier()
         best_model.fit(X_train, y_train)
-        save_stage2_model(best_model, best_name, {
-            'auc_mean': results[best_name]['auc_mean'],
-            'auc_std':  results[best_name]['auc_std'],
-        })
+        metrics = evaluate_voting_model(X_train, y_train)
+        save_stage2_model(best_model, metrics)
+        best_name = "Soft Voting Ensemble (LR + RF + XGB)"
 
     evaluate_grading_model(best_model, X_test, y_test, features, best_name)
 
-
-def _compare_grading_models(X, y):
-    results = compare_models(X, y)
-    best_name = max(results, key=lambda name: results[name]['auc_mean'])
-    return best_name, results
 
 
 if __name__ == '__main__':
