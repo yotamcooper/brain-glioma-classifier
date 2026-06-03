@@ -14,7 +14,8 @@ FIGURES_DIR = "figures"
 
 
 def _impute_for_viz(model, X):
-    return model[:-1].transform(X)
+    lr = model.named_estimators_["lr"] if hasattr(model, "named_estimators_") else model
+    return lr[:-1].transform(X)
 
 
 def plot_roc(y_true, y_probs, title="ROC Curve", save_path=None):
@@ -89,7 +90,7 @@ def plot_feature_importance(model, feature_names, top_n=15, save_path=None):
 
 
 def plot_lr_coefficients(model, feature_names, save_path=None):
-    clf = model.named_steps["clf"]
+    clf = model.named_estimators_["lr"].named_steps["clf"]
     coefs = pd.Series(clf.coef_[0], index=feature_names).sort_values()
     plt.figure(figsize=(10, 6))
     coefs.plot(kind="barh", color=["tomato" if c > 0 else "steelblue" for c in coefs])
