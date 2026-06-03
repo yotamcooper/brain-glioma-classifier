@@ -50,34 +50,36 @@ Classifies MRI brain scans as healthy or tumor using a fine-tuned DenseNet-121 C
 | False Negatives | 65 (missed tumors) |
 | False Positives | 42 (healthy misclassified) |
 
-## Stage 2: LGG vs GBM Grading
+### Stage 2: LGG vs GBM Grading
 
-Classifies glioma patients as Low Grade Glioma (LGG) or Glioblastoma (GBM) using mutation profiles and clinical features with a fine-tuned Logistic Regression model.
+Classifies glioma patients as Low Grade Glioma (LGG) or Glioblastoma (GBM) using mutation profiles and clinical features with a Soft Voting Ensemble (Logistic Regression + Random Forest + XGBoost).
 
 **Dataset:** [UCI Glioma Grading Dataset](https://archive.ics.uci.edu/dataset/759/glioma+grading+clinical+and+mutation+features+dataset)
 - 862 patients (499 LGG, 363 GBM)
 - 20 mutation features + age, gender, race
 
-**Results:**
+**Model selection:** 5 fold cross-validation across three candidate models:
 
-| Model | CV AUC (5-fold) | Accuracy |
+| Model | CV AUC (5 fold) | CV Accuracy |
 |---|---|---|
 | Logistic Regression | 0.882 ± 0.013 | 0.876 ± 0.014 |
 | Gradient Boosting | 0.866 ± 0.013 | 0.861 ± 0.013 |
 | Random Forest | 0.842 ± 0.023 | 0.842 ± 0.019 |
 
-**Best model:** Logistic Regression: after hyperparameter tuning (C=1, class_weight=balanced):
+Rather than selecting a single best model, all three were combined into a **Soft Voting Ensemble**. Each model outputs a class probability, the ensemble averages these probabilities and predicts the class with the higher mean score. This approach reduces the risk of any one model's systematic blind spots driving the final decision which is  particularly important in a clinical context where a confidently wrong prediction has real consequences.
+
+**Ensemble results** (held-out test set):
 
 | Metric | Value |
 |---|---|
-| AUC | 0.9374 |
-| Accuracy | 88.44% |
-| Sensitivity (TPR) | 86.00% |
-| Specificity (TNR) | 91.78% |
-| False Negatives | 14 (missed GBM) |
-| False Positives | 6 (LGG misclassified) |
+| AUC | 0.9229 |
+| Accuracy | 87.28% |
+| Sensitivity (TPR) | 88% |
+| Specificity (TNR) | 86.3% |
+| False Negatives | 12 (missed GBM) |
+| False Positives | 10 (LGG misclassified) |
 
-Top predictive features: IDH1, NOTCH1, IDH2, PIK3R1, TP53
+Top predictive features (LR component): IDH1, NOTCH1, IDH2, TP53 and Age At Diagnosis
 
 ## Project Structure
 
@@ -96,7 +98,7 @@ Top predictive features: IDH1, NOTCH1, IDH2, PIK3R1, TP53
 ├── models/                # saved models + metadata JSON
 ├── figures/               # all output plots
 ├── brain_glioma_classifier.ipynb
-└── requirements.txt
+└── requirements.txt 
 ```
 
 ## How to Run
