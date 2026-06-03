@@ -14,7 +14,8 @@ FIGURES_DIR = "figures"
 
 
 def _impute_for_viz(model, X):
-    return model[:-1].transform(X)
+    lr = model.named_estimators_["lr"] if hasattr(model, "named_estimators_") else model
+    return lr[:-1].transform(X)
 
 
 def plot_roc(y_true, y_probs, title="ROC Curve", save_path=None):
