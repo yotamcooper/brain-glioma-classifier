@@ -82,17 +82,24 @@ def predict_tumor(mri_folder, model=None, metadata=None, threshold=None, min_fla
 # ════════════════════════════════════════════════════════════
 #  STAGE 2  —  Tumor Grade prediction based on dict
 # ════════════════════════════════════════════════════════════
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
 
-def predict_grading(patient_data: dict,
-                    training_csv="data/TCGA_GBM_LGG_Mutations_all.csv",
-                    model=None, metadata=None):
+def predict_grading(patient_data, training_csv='data/TCGA_GBM_LGG_Mutations_all.csv', model=None, metadata=None):
     if model is None:
         model, metadata = load_stage2_model()
 
     df_train = load_uci_glioma(training_csv)
-    X, y, features, scaler, imputer, label_encoders = encode_labels(df_train)
-    X_patient = transform_patient(patient_data, features, scaler, imputer, label_encoders, df_train)
+    X, y, features, label_encoders = encode_labels(df_train)
 
+    
+    imputer = SimpleImputer(strategy='median')
+    X_imputed = pd.DataFrame(imputer.fit_transform(X), columns=features)
+
+    scaler = StandardScaler()
+    scaler.fit(X_imputed)
+
+    X_patient = transform_patient(patient_data, features, scaler, imputer, label_encoders, df_train)
     prob_gbm = float(model.predict_proba(X_patient)[0][0])
     prob_lgg = float(model.predict_proba(X_patient)[0][1])
     grade    = "GBM (High Grade)" if prob_gbm > prob_lgg else "LGG (Low Grade)"
