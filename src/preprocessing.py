@@ -102,3 +102,27 @@ def create_image_generators(data_dir='data/Brain Tumor MRI Dataset'):
         batch_size=BATCH_SIZE, class_mode='binary', shuffle=False,
     )
     return train_gen, val_gen, test_gen
+
+def transform_patient(patient_data, features, scaler, imputer, label_encoders, df_train):
+# transform raw tablulr data into a digestable form
+    row = {}
+    mutation_cols = get_mutation_columns(df_train)
+
+    for col in features:
+        if col in mutation_cols:
+            val = patient_data.get(col, 'NOT_MUTATED')
+            row[col] = 1 if str(val).upper() == 'MUTATED' else 0
+        elif col == 'Age_at_diagnosis':
+            row[col] = parse_age(str(patient_data.get(col, np.nan)))
+        elif col in label_encoders:
+            raw = str(patient_data.get(col, ''))
+            le = label_encoders[col]
+            row[col] = le.transform([raw])[0] if raw in le.classes_ else 0
+        else:
+            row[col] = patient_data.get(col, 0)
+
+    X = pd.DataFrame([row])[features]
+    X = prepare_features(X, df_train)
+    X = pd.DataFrame(imputer.transform(X), columns=features)
+    X = pd.DataFrame(scaler.transform(X), columns=features)
+    return X
