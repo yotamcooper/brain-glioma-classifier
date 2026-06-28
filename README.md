@@ -79,7 +79,7 @@ Rather than selecting a single best model, all three were combined into a **Soft
 | False Negatives | 12 (missed GBM) |
 | False Positives | 10 (LGG misclassified) |
 
-Top predictive features (LR component): IDH1, NOTCH1, IDH2, TP53 and Age At Diagnosis
+Top predictive features : IDH1, NOTCH1, IDH2, TP53 and Age At Diagnosis
 
 ## Project Structure
 
