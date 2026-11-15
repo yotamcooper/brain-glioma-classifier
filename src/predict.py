@@ -1,9 +1,10 @@
 import os
 import numpy as np
-import pandas as pd
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
-from src.models import load_stage1_model, load_stage2_model
-from src.preprocessing import get_mutation_columns, load_uci_glioma, encode_labels, parse_age, prepare_features, transform_patient
+from src.models import (
+    load_stage1_model, load_stage1_metadata, load_stage2_model, load_stage2_metadata,
+)
+from src.preprocessing import transform_patient
 
 IMG_SIZE = (224, 224)
 
@@ -23,7 +24,9 @@ def predict_tumor(mri_folder, model=None, metadata=None, threshold=None, min_fla
         model, metadata = load_stage1_model()
 
     if threshold is None:
-        threshold = metadata.get("metrics", {}).get("threshold", 0.5)
+        if metadata is None:          # model passed in without its metadata
+            metadata = load_stage1_metadata()
+        threshold = metadata["metrics"]["threshold"]   # chosen on the validation set
 
     image_files = [
         f for f in os.listdir(mri_folder)
@@ -31,6 +34,7 @@ def predict_tumor(mri_folder, model=None, metadata=None, threshold=None, min_fla
     ]
     if not image_files:
         raise ValueError(f"No images found in: {mri_folder}")
+    min_flagged = min(min_flagged, len(image_files))   # a single scan can still be flagged
 
     probs = []
     scan_results = []
@@ -82,26 +86,27 @@ def predict_tumor(mri_folder, model=None, metadata=None, threshold=None, min_fla
 # ════════════════════════════════════════════════════════════
 #  STAGE 2  —  Tumor Grade prediction based on dict
 # ════════════════════════════════════════════════════════════
-from sklearn.preprocessing import StandardScaler
-from sklearn.impute import SimpleImputer
 
-def predict_grading(patient_data, training_csv='data/TCGA_GBM_LGG_Mutations_all.csv', model=None, metadata=None):
+def predict_grading(patient_data, model=None, metadata=None):
+    """
+    patient_data: dict of raw values, e.g. {"Age_at_diagnosis": "52 years 180 days",
+    "Gender": "Male", "Race": "white", "IDH1": "MUTATED", ...}. Mutations that are
+    left out count as NOT_MUTATED; a missing age / gender / race is imputed.
+
+    The model's own pipelines impute and scale (fitted on the training split), so
+    the record is passed in raw encoded form — nothing is refitted at inference.
+    """
     if model is None:
         model, metadata = load_stage2_model()
+    elif metadata is None:            # model passed in without its metadata
+        metadata = load_stage2_metadata()
+    if 'features' not in metadata or 'categories' not in metadata:
+        raise ValueError("This Stage 2 model was saved by an older version of the pipeline. "
+                         "Retrain it with run_stage2(load_saved=False).")
 
-    df_train = load_uci_glioma(training_csv)
-    X, y, features, label_encoders = encode_labels(df_train)
-
-    
-    imputer = SimpleImputer(strategy='median')
-    X_imputed = pd.DataFrame(imputer.fit_transform(X), columns=features)
-
-    scaler = StandardScaler()
-    scaler.fit(X_imputed)
-
-    X_patient = transform_patient(patient_data, features, scaler, imputer, label_encoders, df_train)
-    prob_gbm = float(model.predict_proba(X_patient)[0][0])
-    prob_lgg = float(model.predict_proba(X_patient)[0][1])
+    X_patient = transform_patient(patient_data, metadata['features'], metadata['categories'])
+    prob_gbm = float(model.predict_proba(X_patient)[0][1])   # class 1 = GBM
+    prob_lgg = 1.0 - prob_gbm
     grade    = "GBM (High Grade)" if prob_gbm > prob_lgg else "LGG (Low Grade)"
 
     print("\n" + "=" * 50)

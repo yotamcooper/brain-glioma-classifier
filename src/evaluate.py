@@ -8,6 +8,7 @@ from sklearn.metrics import (
     accuracy_score, confusion_matrix, classification_report
 )
 from sklearn.decomposition import PCA
+from src.preprocessing import GRADE_NAMES
 
 
 FIGURES_DIR = "figures"
@@ -19,10 +20,8 @@ def _impute_for_viz(model, X):
 
 
 def plot_roc(y_true, y_probs, title="ROC Curve", save_path=None):
-    fpr, tpr, thresholds = roc_curve(y_true, y_probs)
+    fpr, tpr, _ = roc_curve(y_true, y_probs)
     roc_auc = auc(fpr, tpr)
-    optimal_idx = np.argmax(tpr - fpr)
-    optimal_threshold = thresholds[optimal_idx]
 
     plt.figure(figsize=(8, 6))
     plt.plot(fpr, tpr, color="darkorange", lw=2,
@@ -37,8 +36,7 @@ def plot_roc(y_true, y_probs, title="ROC Curve", save_path=None):
         plt.savefig(save_path, dpi=150, bbox_inches="tight")
     plt.show()
 
-    print(f"AUC: {roc_auc:.3f} | Optimal threshold: {optimal_threshold:.3f}")
-    print(f"At threshold -> FPR: {fpr[optimal_idx]:.3f}, TPR: {tpr[optimal_idx]:.3f}")
+    print(f"AUC: {roc_auc:.3f}")
     return roc_auc
 
 
@@ -92,6 +90,10 @@ def plot_feature_importance(model, feature_names, top_n=15, save_path=None):
 def plot_lr_coefficients(model, feature_names, save_path=None):
     clf = model.named_estimators_["lr"].named_steps["clf"]
     coefs = pd.Series(clf.coef_[0], index=feature_names).sort_values()
+    top = coefs.reindex(coefs.abs().sort_values(ascending=False).index).head(8)
+    print("\nLargest logistic-regression coefficients (positive pushes towards GBM):")
+    for name, value in top.items():
+        print(f"  {name:<18} {value:+.3f}")
     plt.figure(figsize=(10, 6))
     coefs.plot(kind="barh", color=["tomato" if c > 0 else "steelblue" for c in coefs])
     plt.axvline(x=0, color="black", linewidth=0.8)
@@ -283,6 +285,9 @@ def evaluate_tumor_detector(model, val_gen, test_gen, history):
         "threshold":   optimal_threshold,
         "sensitivity": sensitivity,
         "specificity": specificity,
+        "false_negatives": int(fn),
+        "false_positives": int(fp),
+        "n_test": int(len(y_true)),
     }
 
 
@@ -294,6 +299,8 @@ def evaluate_tumor_detector(model, val_gen, test_gen, history):
 def evaluate_grading_model(model, X_test, y_test, features, model_name):
     os.makedirs(FIGURES_DIR, exist_ok=True)
 
+    # Labels: 0 = LGG, 1 = GBM. GBM is the positive class, so sensitivity is the
+    # share of GBM patients caught and a false negative is a GBM called LGG.
     y_probs = model.predict_proba(X_test)[:, 1]
     y_pred  = model.predict(X_test)
 
@@ -312,7 +319,7 @@ def evaluate_grading_model(model, X_test, y_test, features, model_name):
         ["Sensitivity (TPR)",  f"{sensitivity * 100:.2f}%"],
         ["Specificity (TNR)",  f"{specificity * 100:.2f}%"],
         ["False Negatives",    f"{fn}  (missed GBM)"],
-        ["False Positives",    f"{fp}  (LGG misclassified)"],
+        ["False Positives",    f"{fp}  (LGG called GBM)"],
     ]
 
     print("\n" + "=" * 45)
@@ -322,7 +329,7 @@ def evaluate_grading_model(model, X_test, y_test, features, model_name):
         print(f"  {label:<22}: {value}")
     print("=" * 45)
     print("\nClassification Report:")
-    print(classification_report(y_test, y_pred, target_names=["GBM", "LGG"]))
+    print(classification_report(y_test, y_pred, target_names=GRADE_NAMES))
 
     _save_table_as_png(
         rows,
@@ -334,7 +341,7 @@ def evaluate_grading_model(model, X_test, y_test, features, model_name):
 
     plot_pca(
         X_transformed, y_test,
-        class_names=["GBM", "LGG"],
+        class_names=GRADE_NAMES,
         title=f"PCA: LGG vs GBM — {model_name}",
         save_path=os.path.join(FIGURES_DIR, "pca_lgg_gbm.png")
     )
@@ -347,7 +354,7 @@ def evaluate_grading_model(model, X_test, y_test, features, model_name):
 
     _plot_confusion_matrix(
         confusion_matrix(y_test, y_pred),
-        class_names=["GBM", "LGG"],
+        class_names=GRADE_NAMES,
         title=f"Confusion Matrix — {model_name}",
         save_path=os.path.join(FIGURES_DIR, "confusion_matrix_stage2.png")
     )
@@ -362,3 +369,13 @@ def evaluate_grading_model(model, X_test, y_test, features, model_name):
             model, features,
             save_path=os.path.join(FIGURES_DIR, "feature_importance.png")
         )
+
+    return {
+        "auc":         float(auc_score),
+        "accuracy":    float(accuracy),
+        "sensitivity": float(sensitivity),
+        "specificity": float(specificity),
+        "false_negatives": int(fn),
+        "false_positives": int(fp),
+        "n_test": int(len(y_test)),
+    }

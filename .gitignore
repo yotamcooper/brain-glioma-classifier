@@ -1,13 +1,16 @@
 # Dataset
 data/*
 !data/.gitkeep
+data.zip
 
 # Model artifacts
-models/*
-!models/.gitkeep
+models/
 *.keras
 *.h5
 *.joblib
+
+# Outputs
+figures/
 
 # Tabular data
 *.csv
@@ -24,7 +27,4 @@ __pycache__/
 
 # OS
 .DS_Store
-Thumbs.dbdata.zip
-data/
-models/
-figures/
+Thumbs.db
