@@ -30,7 +30,7 @@ Stage 2: LGG vs GBM Grading Classifier    <- "How aggressive is the tumor?"
 Classifies MRI brain scans as healthy or tumor using a fine-tuned DenseNet-121 CNN.
 
 **Dataset:** [Brain Tumor MRI Classification Dataset (Tumor vs. No Tumor)](https://data.mendeley.com/datasets/w56x9jrhxr/1) - Mendeley Data
-- T1-weighted brain MRI scans across two classes: 3,671 original Tumor images | 13,273 No Tumor images
+- Brain MRI slices across two classes: 3,671 original Tumor images | 13,273 No Tumor images. The slices mix sequences (T1 with and without contrast, T2, FLAIR, diffusion) and planes (axial, coronal, sagittal)
 - The dataset also ships a pre-augmented Tumor folder (13,252 rotated copies). **It is not used for splitting**: rotated copies of the same scan would land in both train and test and leak information into the evaluation. Only the original images are split.
 - Class imbalance is handled with class weights in the loss, and augmentation (rotation, shift, flip, zoom) is applied on the fly to the training set only
 - Images resized to 224×224 to match DenseNet-121 input requirements
@@ -90,7 +90,7 @@ Strongest features (largest logistic regression coefficients): IDH1, NOTCH1, Age
 
 - **Stage 1 and Stage 2 are trained on different datasets and different patients.** There is no cohort with both MRI and mutation data, so the two-stage pipeline has not been validated end to end.
 - The Stage 1 dataset gives no patient IDs, so images are split per image, not per patient. If several slices come from the same person, some leakage between splits is still possible.
-- The Stage 1 images come from several sources with different resolutions and formats, and the mix is not the same in the two classes (some image sizes only occur in the Tumor folder). Part of the Stage 1 score may come from recognising the source rather than the tumor, so it should not be read as performance on scans from a new hospital.
+- The Stage 1 dataset is a single upload from a student thesis project, and its authors do not say which hospital or scanner the scans come from, how many patients there are, or how "No Tumor" was decided. The mix of sequences and image sizes is not the same in the two classes (some image sizes only occur in the Tumor folder), so part of the Stage 1 score may come from recognising the type of scan rather than the tumor. It should not be read as performance on scans from a new hospital.
 - The Stage 2 test set is 173 patients, so its metrics move by a few points with a different split (one patient is about 0.6 points of accuracy).
 - Research project only — not a medical device and not for clinical use.
 
@@ -124,3 +124,20 @@ Open the notebook via the badge above and run all cells. Each cell has a title t
 - **Models** are retrained when no up-to-date saved model is found. Each saved model carries a `pipeline_version`; a model saved by an older version of the code (for example one trained on the augmented split) is ignored, never loaded. In Colab the trained models are cached in `MyDrive/brain-glioma-classifier/models/` so later sessions skip training. Stage 1 needs a GPU runtime to train in reasonable time; Stage 2 takes seconds.
 
 📁 [Google Drive Folder](https://drive.google.com/drive/folders/1iZKPwfNk8ybHo9LXgjmq_hX7k6h5Eyu6?usp=sharing) — pretrained models
+
+## Acknowledgements
+
+**Data**
+
+- Emran A.S.H., Akter H., Nayem F.M., Shiam A.A. *Brain Tumor MRI Classification Dataset (Tumor vs. No Tumor)*. Mendeley Data, V1, 2025. [doi:10.17632/w56x9jrhxr.1](https://doi.org/10.17632/w56x9jrhxr.1) (CC BY 4.0)
+- Tasci E., Camphausen K., Krauze A.V., Zhuge Y. *Glioma Grading Clinical and Mutation Features*. [UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/759/glioma+grading+clinical+and+mutation+features+dataset), 2022. Built from TCGA-LGG and TCGA-GBM.
+
+**Reading that shaped this project**
+
+- Smith H.L., Wadhwani N., Horbinski C. Major Features of the 2021 WHO Classification of CNS Tumors. *Neurotherapeutics*, 2022. [doi:10.1007/s13311-022-01249-0](https://doi.org/10.1007/s13311-022-01249-0)
+- Tasci E., Zhuge Y., Kaur H., Camphausen K., Krauze A.V. Hierarchical Voting-Based Feature Selection and Ensemble Learning Model Scheme for Glioma Grading with Clinical and Molecular Characteristics. *Int. J. Mol. Sci.* 2022, 23, 14155. [doi:10.3390/ijms232214155](https://doi.org/10.3390/ijms232214155)
+- Rasheed M., Jaffar M.A., Akram A., Rashid J., Alshalali T.A.N., Irshad A., Sarwar N. Improved brain tumor classification through DenseNet121 based transfer learning. *Discover Oncology* 16, 1645 (2025). [doi:10.1007/s12672-025-03501-3](https://doi.org/10.1007/s12672-025-03501-3)
+- Li X., Huang X., Shen Y., et al. Machine learning for grading prediction and survival analysis in high grade glioma. *Scientific Reports* 15, 16955 (2025). [doi:10.1038/s41598-025-01413-4](https://doi.org/10.1038/s41598-025-01413-4)
+- Rajakaruna P., Rios S., Elnahas H., et al. Molecular Biomarkers of Glioma. *Biomedicines* 2025, 13, 1298. [doi:10.3390/biomedicines13061298](https://doi.org/10.3390/biomedicines13061298)
+- Neill S.G., Hauenstein J., Li M.M., Liu Y.J., Luo M., Saxe D.F., Ligon A.H. Copy number assessment in the genomic analysis of CNS neoplasia: An evidence-based review from the Cancer Genomics Consortium (CGC) working group on primary CNS tumors. *Cancer Genetics* 243 (2020) 19–47. [doi:10.1016/j.cancergen.2020.02.004](https://doi.org/10.1016/j.cancergen.2020.02.004)
+- Ivchenko O. CNN Architectures for Medical Imaging: From ResNet to EfficientNet. Online article, 8 February 2026.
