@@ -40,17 +40,19 @@ Classifies MRI brain scans as healthy or tumor using a fine-tuned DenseNet-121 C
 
 **Results:**
 
-> ⚠️ **These numbers predate the leakage fix and are likely optimistic.** They were measured with augmented copies of training scans in the test set, and with the decision threshold tuned on the test set itself. The split is now built from the original, de-duplicated images and the threshold is chosen on the validation set. The table will be replaced once Stage 1 has been retrained on the new split (see *How to Run*) — expect lower numbers.
+Measured on the held-out test set (2,496 images: 1,946 No Tumor / 550 Tumor). The split is built from the original, de-duplicated images only, and the decision threshold is chosen on the validation set (Youden's J), not on the test set.
 
 | Metric | Value |
 |---|---|
-| AUC | 0.9958 |
-| Accuracy | 97.31% |
-| Optimal Threshold | 0.2078 |
-| Sensitivity (TPR) | 96.73% |
-| Specificity (TNR) | 97.89% |
-| False Negatives | 65 (missed tumors) |
-| False Positives | 42 (healthy misclassified) |
+| AUC | 0.9790 |
+| Accuracy | 93.15% |
+| Threshold (chosen on validation) | 0.2849 |
+| Sensitivity (TPR) | 91.82% |
+| Specificity (TNR) | 93.53% |
+| False Negatives | 45 (missed tumors) |
+| False Positives | 126 (healthy misclassified) |
+
+An earlier version of this project reported AUC 0.9958 and 97.31% accuracy. Those numbers were inflated: rotated copies of training scans were in the test set, and the threshold was tuned on the test set itself. The numbers above replace them.
 
 ### Stage 2: LGG vs GBM Grading
 
