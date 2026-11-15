@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import (
     EarlyStopping,
@@ -14,8 +15,19 @@ MODELS_DIR = "models"
 #  STAGE 1  —  Tumor Detector
 # ════════════════════════════════════════════════════════════
 
+def _class_weights(train_gen):
+    # Originals are imbalanced (~3.7k tumor vs ~13.3k no tumor). Weight the loss
+    # instead of duplicating tumor images on disk.
+    classes = np.asarray(train_gen.classes)
+    counts = np.bincount(classes)
+    weights = {i: float(len(classes) / (len(counts) * c)) for i, c in enumerate(counts)}
+    print(f"Class counts (train): {dict(enumerate(counts.tolist()))} -> weights {weights}")
+    return weights
+
+
 def train_stage1(model, base_model, train_gen, val_gen):
     os.makedirs(MODELS_DIR, exist_ok=True)
+    class_weight = _class_weights(train_gen)
 
     # ── PHASE 1: head only, base frozen ───────────────────
     print("\n" + "=" * 60)
@@ -35,6 +47,7 @@ def train_stage1(model, base_model, train_gen, val_gen):
         train_gen,
         epochs=10,
         validation_data=val_gen,
+        class_weight=class_weight,
         callbacks=_get_callbacks(
             phase=1,
             checkpoint_path=os.path.join(MODELS_DIR, "stage1_phase1_best.keras"),
@@ -68,6 +81,7 @@ def train_stage1(model, base_model, train_gen, val_gen):
         train_gen,
         epochs=20,
         validation_data=val_gen,
+        class_weight=class_weight,
         callbacks=_get_callbacks(
             phase=2,
             checkpoint_path=os.path.join(MODELS_DIR, "stage1_phase2_best.keras"),

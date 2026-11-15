@@ -30,15 +30,17 @@ Stage 2: LGG vs GBM Grading Classifier    <- "How aggressive is the tumor?"
 Classifies MRI brain scans as healthy or tumor using a fine-tuned DenseNet-121 CNN.
 
 **Dataset:** [Brain Tumor MRI Classification Dataset (Tumor vs. No Tumor)](https://data.mendeley.com/datasets/w56x9jrhxr/1) - Mendeley Data
-- ~26,500 T1-weighted brain MRI scans across two classes
-- Tumor (after augmentation): 13,252 images | No Tumor: 13,273 images
-- Original dataset was imbalanced (3,671 tumor vs 13,273 no-tumor) - tumor class augmented on disk using rotation and normalization
+- T1-weighted brain MRI scans across two classes: 3,671 original Tumor images | 13,273 No Tumor images
+- The dataset also ships a pre-augmented Tumor folder (13,252 rotated copies). **It is not used for splitting**: rotated copies of the same scan would land in both train and test and leak information into the evaluation. Only the original images are split.
+- Class imbalance is handled with class weights in the loss, and augmentation (rotation, shift, flip, zoom) is applied on the fly to the training set only
 - Images resized to 224×224 to match DenseNet-121 input requirements
 - Split: 70% train / 15% val / 15% test (stratified, done in `preprocessing.py`)
 - Binary classification: No Tumor / Tumor
 - Two phase training: 1) head only phase with DenseNet frozen → 2) fine-tune last 50 DenseNet layers with head
 
 **Results:**
+
+> ⚠️ **These numbers predate the leakage fix and are likely optimistic.** They were measured with augmented copies of training scans in the test set, and with the decision threshold tuned on the test set itself. The threshold is now chosen on the validation set and applied once to the test set. Re-run Stage 1 (see *Re-running Stage 1* below) to get honest numbers — expect them to be lower.
 
 | Metric | Value |
 |---|---|
@@ -81,6 +83,14 @@ Rather than selecting a single best model, all three were combined into a **Soft
 
 Top predictive features : IDH1, NOTCH1, IDH2, TP53 and Age At Diagnosis
 
+**A note on the biology (WHO CNS5, 2021).** IDH1 coming out as the top feature is not a surprise — under the 2021 WHO classification of CNS tumours, glioblastoma is *defined* as IDH-wildtype; an IDH-mutant tumour cannot be a glioblastoma. The TCGA LGG/GBM labels used here follow the older, histology-based grading, so part of what the model learns is the molecular rule that the new classification made explicit. A natural next step is to relabel the cohort with WHO 2021 categories (IDH status, 1p/19q codeletion, CDKN2A/B, etc.) and see which features still matter.
+
+## Limitations
+
+- **Stage 1 and Stage 2 are trained on different datasets and different patients.** There is no cohort with both MRI and mutation data, so the two-stage pipeline has not been validated end to end.
+- The Stage 1 dataset gives no patient IDs, so images are split per image, not per patient. If several slices come from the same person, some leakage between splits is still possible.
+- Research project only — not a medical device and not for clinical use.
+
 ## Project Structure
 
 ```text
@@ -106,4 +116,13 @@ Top predictive features : IDH1, NOTCH1, IDH2, TP53 and Age At Diagnosis
 Open the notebook via the badge above and run all cells. Each cell has a title that guides you through the steps.
 
 📁 [Google Drive Folder](https://drive.google.com/drive/folders/1iZKPwfNk8ybHo9LXgjmq_hX7k6h5Eyu6?usp=sharing) — dataset and pretrained models
+
+## Re-running Stage 1
+
+The notebook loads a saved Stage 1 model from Drive if one exists. To get metrics with the leakage fix:
+
+1. Rebuild the split from the **original** images: `split_dataset(source_dir=..., output_dir='data/Brain Tumor MRI Dataset')` with the raw folder containing `Tumor` (originals) and `No Tumor`. It refuses to split an augmented folder.
+2. Re-zip `data/` to Drive (or update `data.zip`).
+3. Move or delete `models/stage1_final.keras` and `stage1_metadata.json` on Drive so the notebook retrains instead of loading the old model.
+4. Run the Stage 1 cell, then update the results table above.
 

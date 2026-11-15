@@ -53,11 +53,40 @@ def encode_labels(df):
 
 def split_dataset(source_dir='data/Brain Tumor MRI Dataset Raw',
                   output_dir='data/Brain Tumor MRI Dataset',
-                  val_ratio=0.15, test_ratio=0.15, seed=42):
+                  val_ratio=0.15, test_ratio=0.15, seed=42,
+                  folder_name_map=None):
+    """
+    Split the ORIGINAL (non-augmented) images into train / val / test.
+
+    The Mendeley dataset ships a 'Tumor (Augmented)' folder containing rotated
+    copies of the 3,671 original tumor scans. Splitting that folder puts copies of
+    the same scan into both train and test, so the test set is no longer unseen
+    data and the reported metrics are inflated. Split the originals instead;
+    training-time augmentation happens on the fly in create_image_generators(),
+    and class imbalance is handled with class weights in train_stage1().
+
+    folder_name_map maps raw folder names -> clean class names. Point it at the
+    original tumor folder if yours is named differently.
+    """
     np.random.seed(seed)
-    folder_name_map = {'Tumor(Augmented)': 'Tumor', 'No Tumor': 'No Tumor'}
+    if folder_name_map is None:
+        folder_name_map = {'Tumor': 'Tumor', 'Tumor (Original)': 'Tumor',
+                           'Tumor(Original)': 'Tumor', 'No Tumor': 'No Tumor'}
+
+    bad = [k for k in folder_name_map if 'augment' in k.lower()]
+    if bad:
+        raise ValueError(
+            f"Refusing to split augmented folder(s) {bad}: augmented copies of the "
+            "same scan would leak into the test set. Use the original images.")
+
     class_names = [d for d in os.listdir(source_dir)
                    if os.path.isdir(os.path.join(source_dir, d)) and d in folder_name_map]
+    found = {folder_name_map[d] for d in class_names}
+    if found != {'Tumor', 'No Tumor'}:
+        raise ValueError(
+            f"Expected original 'Tumor' and 'No Tumor' folders in {source_dir}, "
+            f"found {sorted(os.listdir(source_dir))}. Pass folder_name_map to match "
+            "your folder names (original tumor images, not the augmented ones).")
 
     for split in ['train', 'val', 'test']:
         for cls in class_names:
