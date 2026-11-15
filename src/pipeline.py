@@ -24,11 +24,11 @@ def run_stage1(load_saved=False):
                 history = json.load(f)
         else:
             history = None
-        evaluate_tumor_detector(model, test_gen, history)
+        evaluate_tumor_detector(model, val_gen, test_gen, history)
     else:
         model, base_model = build_tumor_detector()
         model, history = train_stage1(model, base_model, train_gen, val_gen)
-        metrics = evaluate_tumor_detector(model, test_gen, history)
+        metrics = evaluate_tumor_detector(model, val_gen, test_gen, history)
         save_stage1_model(model, metrics, history)
     return model, history
 

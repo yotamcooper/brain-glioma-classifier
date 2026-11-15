@@ -207,17 +207,26 @@ def _save_table_as_png(rows, title, save_path):
 # ════════════════════════════════════════════════════════════
 
 
-def evaluate_tumor_detector(model, test_gen, history):
+def select_threshold(model, val_gen):
+    """Pick the decision threshold (Youden's J) on the VALIDATION set only."""
+    y_val   = val_gen.classes
+    p_val   = model.predict(val_gen, verbose=1).ravel()
+    fpr, tpr, thresholds = roc_curve(y_val, p_val)
+    return float(thresholds[np.argmax(tpr - fpr)])
+
+
+def evaluate_tumor_detector(model, val_gen, test_gen, history):
     os.makedirs(FIGURES_DIR, exist_ok=True)
 
-    plot_training_curves(history)
+    if history:
+        plot_training_curves(history)
+
+    # Threshold chosen on validation data, then applied once to the untouched
+    # test set. Tuning it on the test set would make the test metrics optimistic.
+    optimal_threshold = select_threshold(model, val_gen)
 
     y_true  = test_gen.classes
     y_probs = model.predict(test_gen, verbose=1).ravel()
-
-    fpr, tpr, thresholds = roc_curve(y_true, y_probs)
-    optimal_idx       = np.argmax(tpr - fpr)
-    optimal_threshold = thresholds[optimal_idx]
 
     y_pred = (y_probs >= optimal_threshold).astype(int)
 
@@ -233,7 +242,7 @@ def evaluate_tumor_detector(model, test_gen, history):
         ["Metric",             "Value"],
         ["AUC Score",          f"{auc_score:.4f}"],
         ["Accuracy",           f"{accuracy * 100:.2f}%"],
-        ["Optimal Threshold",  f"{optimal_threshold:.4f}"],
+        ["Threshold (from val)", f"{optimal_threshold:.4f}"],
         ["Sensitivity (TPR)",  f"{sensitivity * 100:.2f}%"],
         ["Specificity (TNR)",  f"{specificity * 100:.2f}%"],
         ["False Negatives",    f"{fn}  (missed tumors)"],
